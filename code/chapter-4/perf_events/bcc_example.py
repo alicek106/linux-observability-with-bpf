@@ -1,15 +1,19 @@
 from bcc import BPF
 
 bpf_source = """
-#include <uapi/linux/ptrace.h>
+#include <linux/sched.h>
+
+struct data_t {
+  char comm[TASK_COMM_LEN];
+};
 
 BPF_PERF_OUTPUT(events);
 
 int do_sys_execve(struct pt_regs *ctx) {
-  char comm[16];
-  bpf_get_current_comm(&comm, sizeof(comm));
+  struct data_t data = {};
+  bpf_get_current_comm(&data.comm, sizeof(data.comm));
 
-  events.perf_submit(ctx, &comm, sizeof(comm));
+  events.perf_submit(ctx, &data, sizeof(data));
   return 0;
 }
 """
@@ -22,8 +26,8 @@ from collections import Counter
 aggregates = Counter()
 
 def aggregate_programs(cpu, data, size):
-  comm = bpf["events"].event(data)
-  aggregates[comm] += 1
+  t = bpf["events"].event(data)
+  aggregates[t.comm] += 1
 
 bpf["events"].open_perf_buffer(aggregate_programs)
 while True:
@@ -32,5 +36,5 @@ while True:
     except KeyboardInterrupt:
       break
 
-for (comm, times) in aggregates.most_common(): 
+for (comm, times) in aggregates.most_common():
   print("Program {} executed {} times".format(comm, times))
