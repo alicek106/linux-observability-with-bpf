@@ -5,7 +5,7 @@ bpf_source = """
 
 BPF_PERF_OUTPUT(events);
 
-int do_sys_execve(struct pt_regs *ctx, void filename, void argv, void envp) {
+int do_sys_execve(struct pt_regs *ctx) {
   char comm[16];
   bpf_get_current_comm(&comm, sizeof(comm));
 
